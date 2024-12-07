@@ -90,6 +90,9 @@ void stopMotors() {
 }
 
 void loop() {
+
+    // Initialize gripper to open position
+
   if (Serial.available() > 0) {
     char command = Serial.read();
 
@@ -105,7 +108,7 @@ void loop() {
       long distance = getDistance();
       Serial.println(distance);  // Send distance as a clean string
     } else if (command == 'G') {
-      gripper.write(0);  // Close gripper
+      gripper.write(45);  // Close gripper
       delay(1000);
       gripper.write(180); // Open gripper after gripping (if required)
     }
