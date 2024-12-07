@@ -56,8 +56,8 @@ long getDistance() {
 void moveForward() {
   analogWrite(enL, 100);  // Adjusted speed to 50% of original
   analogWrite(enR, 100);
-  digitalWrite(inL1, HIGH);
-  digitalWrite(inL2, LOW);
+  digitalWrite(inL1, LOW);
+  digitalWrite(inL2, HIGH);
   digitalWrite(inR1, HIGH);
   digitalWrite(inR2, LOW);
 }
@@ -65,8 +65,8 @@ void moveForward() {
 void turnLeft() {
   analogWrite(enL, 50);   // Reduced left motor speed
   analogWrite(enR, 100);
-  digitalWrite(inL1, HIGH);
-  digitalWrite(inL2, LOW);
+  digitalWrite(inL1, LOW);
+  digitalWrite(inL2, HIGH);
   digitalWrite(inR1, HIGH);
   digitalWrite(inR2, LOW);
 }
@@ -74,8 +74,8 @@ void turnLeft() {
 void turnRight() {
   analogWrite(enL, 100);
   analogWrite(enR, 50);   // Reduced right motor speed
-  digitalWrite(inL1, HIGH);
-  digitalWrite(inL2, LOW);
+  digitalWrite(inL1, LOW);
+  digitalWrite(inL2, HIGH);
   digitalWrite(inR1, HIGH);
   digitalWrite(inR2, LOW);
 }
