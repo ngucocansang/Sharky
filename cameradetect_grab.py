@@ -4,11 +4,11 @@ import serial
 import time
 
 # Initialize serial communication with Arduino
-arduino = serial.Serial(port='COM6', baudrate=9600, timeout=1)  # Adjust 'COM6' to your port
+arduino = serial.Serial(port='/dev/ttyUSB0', baudrate=9600, timeout=1)  # Adjust 'COM6' to your port
 time.sleep(2)  # Wait for the connection to establish
 
 # Initialize webcam
-vid = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Adjust the camera index if necessary
+vid = cv2.VideoCapture(0)  # Adjust the camera index if necessary
 
 # Verify if the camera opened successfully
 if not vid.isOpened():
@@ -22,8 +22,9 @@ kd = 0.1  # Derivative gain
 previous_error = 0
 integral = 0
 
-# Distance threshold to trigger gripping
-GRIP_DISTANCE = 7.0  # Distance in cm
+# Distance thresholds
+GRIP_DISTANCE = 7.0  # Distance in cm to trigger gripping
+SLOW_DISTANCE = 10.0  # Distance in cm to reduce speed
 
 def send_command(command):
     """Send a command to the Arduino."""
@@ -51,14 +52,6 @@ while True:
     mask = cv2.inRange(hsv, lower_green, upper_green)
     green_detection = cv2.bitwise_and(frame, frame, mask=mask)
 
-    # Draw grid lines on the green detection frame
-    grid_color = (255, 255, 255)  # White color for the grid
-    thickness = 1  # Thickness of the grid lines
-    cv2.line(green_detection, (width // 3, 0), (width // 3, height), grid_color, thickness)
-    cv2.line(green_detection, (2 * width // 3, 0), (2 * width // 3, height), grid_color, thickness)
-    cv2.line(green_detection, (0, height // 3), (width, height // 3), grid_color, thickness)
-    cv2.line(green_detection, (0, 2 * height // 3), (width, 2 * height // 3), grid_color, thickness)
-
     # Find contours of the green object
     contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     if contours:
@@ -83,14 +76,6 @@ while True:
         correction = kp * error + ki * integral + kd * derivative
         previous_error = error
 
-        # Determine direction and send commands to the Arduino
-        if abs(error) < 10:  # If the object is near the center
-            send_command("F")  # Move forward
-        elif correction > 0:
-            send_command("R")  # Turn right
-        else:
-            send_command("L")  # Turn left
-
         # Simulate distance check using ultrasonic sensor
         send_command("D")  # Ask Arduino for distance
         distance = arduino.readline().decode().strip()  # Read distance from Arduino
@@ -99,17 +84,27 @@ while True:
             try:
                 distance = float(distance)
                 print(f"Distance: {distance} cm")
-                if distance < GRIP_DISTANCE:
+
+                # Adjust robot behavior based on distance
+                if distance <= GRIP_DISTANCE:
+                    send_command("S")  # Stop the robot
                     send_command("G")  # Trigger gripping mechanism
                     break  # Stop loop after gripping
+                elif distance <= SLOW_DISTANCE:
+                    send_command("SF")  # Slow forward
+                else:
+                    if abs(error) < 10:  # If the object is near the center
+                        send_command("F")  # Move forward
+                    elif correction > 0:
+                        send_command("R")  # Turn right
+                    else:
+                        send_command("L")  # Turn left
+
             except ValueError:
                 print("Error: Invalid distance value received.")
 
-    # Display the original frame
-    cv2.imshow("Original Frame", frame)
-
-    # Display the green detection frame
-    cv2.imshow("Green Detection", green_detection)
+    # Display the green detection frame (Optional, uncomment to visualize)
+    # cv2.imshow("Green Detection", green_detection)
 
     # Break the loop if 'q' is pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):
