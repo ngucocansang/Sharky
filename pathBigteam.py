@@ -10,6 +10,7 @@ from nav_msgs.msg import OccupancyGrid
 from std_msgs.msg import Header
 from geometry_msgs.msg import Pose, Point, TransformStamped
 import tf2_ros
+import serial
 
 class PathFollower(Node):
     def __init__(self):
@@ -48,6 +49,29 @@ class PathFollower(Node):
         # Add the publisher for the closest point marker
         self.closest_point_publisher = self.create_publisher(Marker, '/closest_point_marker', 10)
         self.create_timer(1.0, self.publish_closest_point_marker)
+
+        # Serial connection setup (modify port and baudrate as per your setup)
+        self.serial_port = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
+        self.serial_port.flush()
+
+        # Robot dimensions
+        self.wheelbase = 0.2  # Example wheelbase in meters (adjust based on your robot)
+
+    def calculate_wheel_velocities(self, linear_velocity, angular_velocity):
+            """
+    Calculate left and right wheel velocities for a differential-drive robot.
+    """
+    v_left = linear_velocity - (angular_velocity * self.wheelbase / 2.0)
+    v_right = linear_velocity + (angular_velocity * self.wheelbase / 2.0)
+    return v_left, v_right
+
+    def send_to_arduino(self, v_left, v_right):
+    """
+    Send wheel velocities to Arduino via serial communication.
+    """
+    message = f"{v_left:.2f},{v_right:.2f}\n"
+    self.serial_port.write(message.encode('utf-8'))
+    self.get_logger().info(f"Sent to Arduino: {message.strip()}")
 
         #PID gains:
         self.kp = 4.0
@@ -414,6 +438,17 @@ class PathFollower(Node):
             angular_velocity = self.calculate_pid(lateral_error)
             angular_velocity = np.clip(angular_velocity, -1.0, 1.0)
             linear_velocity = 0.05  # You can adjust this value as needed for your robot's speed
+
+        # Compute wheel velocities
+            v_left, v_right = self.calculate_wheel_velocities(linear_velocity, angular_velocity)
+
+        # Send wheel velocities to Arduino
+            self.send_to_arduino(v_left, v_right)
+
+        # Stop the robot if it reaches the goal
+        distances = np.linalg.norm(self.path[-1]*self.grid_size - self.pose[:2])
+        if distances < 0.05:
+            self.stop_robot()
 
         # Debugging print for PID output (angular velocity)
             print(f"PID output - Angular velocity: {angular_velocity}")
